@@ -9,7 +9,10 @@ import {
   checkStatus,
   generate,
   generate_img,
+  generate_img2,
   generate_img_with_controlnet,
+  generate_img_with_controlnet2,
+  generate_repose_img,
   getUploadUrl,
 } from "@/server/generate";
 import { VscGithubAlt } from "react-icons/vsc";
@@ -28,6 +31,7 @@ import {
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageGenerationResult } from "@/components/ImageGenerationResult";
+import { ImageGenerationResult_repose } from "@/components/ImageGenerationResult_repose";
 import { WebsocketDemo } from "@/components/WebsocketDemo";
 import { WebsocketDemo2 } from "@/components/WebsocketDemo2";
 import { cn } from "@/lib/utils";
@@ -43,15 +47,16 @@ export default function Page() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-between mt-2 ">
       <Tabs value={seletedTab} onValueChange={setSelectedTab} className={cn("w-full flex flex-col items-center", (seletedTab == "ws2" || seletedTab == "ws3") ? " " : "max-w-[600px]")}>
-        <TabsList className="grid w-full grid-cols-6 max-w-[600px]">
-          <TabsTrigger value="ws">Realtime</TabsTrigger>
+        <TabsList >
+          {/* <TabsTrigger value="ws">Realtime</TabsTrigger>
           <TabsTrigger value="ws2">Realtime 2</TabsTrigger>
-          <TabsTrigger value="ws3">Screen</TabsTrigger>
-          <TabsTrigger value="txt2img">txt2img</TabsTrigger>
-          <TabsTrigger value="img2img">img2img</TabsTrigger>
-          <TabsTrigger value="controlpose">Controlpose</TabsTrigger>
+          <TabsTrigger value="ws3">Screen</TabsTrigger> */}
+          <TabsTrigger value="txt2img">txt2img: Character Sheet</TabsTrigger>
+          <TabsTrigger value="img2img">img2img: Style Transfer</TabsTrigger>
+          <TabsTrigger value="reposerimg">Reposer: Pose Transfer</TabsTrigger>
+          <TabsTrigger value="controlpose">Controlpose: Pose2Image</TabsTrigger>
         </TabsList>
-        <TabsContent value="ws">
+        {/* <TabsContent value="ws">
           <WebsocketDemo />
         </TabsContent>
         <TabsContent value="ws2">
@@ -59,12 +64,15 @@ export default function Page() {
         </TabsContent>
         <TabsContent value="ws3">
           <WebsocketDemo3 />
-        </TabsContent>
+        </TabsContent> */}
         <TabsContent value="txt2img">
           <Txt2img />
         </TabsContent>
         <TabsContent value="img2img">
           <Img2img />
+        </TabsContent>
+        <TabsContent value="reposerimg">
+          <ReposeIMG />
         </TabsContent>
         <TabsContent value="controlpose">
           <OpenposeToImage />
@@ -73,7 +81,7 @@ export default function Page() {
 
       <div className="fixed bottom-4 flex gap-2">
         <Button asChild variant={"outline"}>
-          <a href="https://github.com/BennyKok/comfyui-deploy" target="_blank" className="plausible-event-name=Button+GitHub flex gap-2 items-center">GitHub <VscGithubAlt /></a>
+          <a href="https://github.com/tutnyal" target="_blank" className="plausible-event-name=Button+GitHub flex gap-2 items-center">GitHub <VscGithubAlt /></a>
         </Button>
         <Button asChild variant={"outline"}>
           <a href="https://discord.gg/qtHUaVNRVM" target="_blank" className="plausible-event-name=Button+Discord flex gap-2 items-center">Discord <FaDiscord /></a>
@@ -91,7 +99,7 @@ function Txt2img() {
   return (
     <Card className="w-full max-w-[600px]">
       <CardHeader>
-        Comfy Deploy - Vector Line Art Tool
+        ainime  - Vector Line Art Tool
         <div className="text-xs text-foreground opacity-50">
           Lora -{" "}
           <a href="https://civitai.com/models/256144/stick-line-vector-illustration">
@@ -126,7 +134,7 @@ function Txt2img() {
             });
           }}
         >
-          <Label htmlFor="picture">Image prompt</Label>
+          <Label htmlFor="picture">Enter text prompt to generate image</Label>
           <Input
             id="picture"
             type="text"
@@ -148,8 +156,23 @@ function Txt2img() {
   );
 }
 
+async function uploadFile(uploadUrl: string, file: File): Promise<Response> {
+  return fetch(uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: {
+      "Content-Type": file.type,
+      "x-amz-acl": "public-read",
+      "Content-Length": file.size.toString(),
+    },
+  });
+}
+
 function Img2img() {
   const [prompt, setPrompt] = useState<File>();
+  const [prompt2, setPrompt2] = useState<File>();
+  const [txtprompt, txtsetPrompt] = useState("");
+  const [txtprompt2, txtsetPrompt2] = useState("");
   const [image, setImage] = useState("");
   const [loading, setLoading] = useState(false);
   const [runId, setRunId] = useState("");
@@ -158,6 +181,10 @@ function Img2img() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     setPrompt(e.target.files[0]);
+  };
+  const handleFileChange2 = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    setPrompt2(e.target.files[0]);
   };
 
   // Polling in frontend to check for the
@@ -179,7 +206,7 @@ function Img2img() {
 
   return (
     <Card className="w-full max-w-[600px]">
-      <CardHeader>Comfy Deploy - Scribble to Anime Girl</CardHeader>
+      <CardHeader>ainime - Transfer style from one image to the other </CardHeader>
       <CardContent>
         <form
           className="grid w-full items-center gap-1.5"
@@ -189,6 +216,7 @@ function Img2img() {
             if (!prompt) return;
 
             setImage("");
+            setLoading(true);
 
             setStatus("getting url for upload");
 
@@ -200,6 +228,8 @@ function Img2img() {
               setStatus("uploading input");
 
               console.log(res);
+              // const uploadOne = await getUploadUrl(prompt.type, prompt.size);
+              // const uploadTwo = await getUploadUrl(prompt2.type, prompt2.size);
 
               fetch(res.upload_url, {
                 method: "PUT",
@@ -214,7 +244,7 @@ function Img2img() {
                   setStatus("uploaded input");
 
                   setLoading(true);
-                  generate_img(res.download_url).then((res) => {
+                  generate_img2(txtprompt, txtprompt2, res.download_url).then((res) => {
                     console.log(res);
                     if (!res) {
                       setStatus("error");
@@ -229,8 +259,25 @@ function Img2img() {
             });
           }}
         >
+          <Label htmlFor="picture3">Positive Text Prompt</Label>
+          <Input
+            id="picture3"
+            type="text"
+            value={txtprompt}
+            onChange={(e) => txtsetPrompt(e.target.value)}
+          />
+          <Label htmlFor="picture2">Negative Text Prompt</Label>
+          <Input
+            id="picture2"
+            type="text"
+            value={txtprompt2}
+            onChange={(e) => txtsetPrompt2(e.target.value)}
+          />
           <Label htmlFor="picture">Image prompt</Label>
           <Input id="picture" type="file" onChange={handleFileChange} />
+          {/* <Label htmlFor="picture2">Image prompt 2</Label>
+          <Input id="picture2" type="file" onChange={handleFileChange2} /> */}
+
           <Button type="submit" className="flex gap-2" disabled={loading}>
             Generate {loading && <LoadingIcon />}
           </Button>
@@ -239,6 +286,159 @@ function Img2img() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function ReposeIMG() {
+  // const [prompt, setPrompt] = useState<File>();
+  const [prompt, setPrompt] = useState<File | null>(null);
+  const [prompt2, setPrompt2] = useState<File | null>(null);
+  const [image, setImage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [runId, setRunId] = useState("");
+  const [status, setStatus] = useState<string>();
+  const [faceFile, setFaceFile] = useState(null);
+  const [styleFile, setStyleFile] = useState(null);
+  const [positivePrompt, setPositivePrompt] = useState('');
+  const [negativePrompt, setNegativePrompt] = useState('nfsw, bad quality image');
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    setPrompt(e.target.files[0]);
+
+  };
+
+  const handleFileChange2 = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    setPrompt2(e.target.files[0]);
+  };
+
+
+  // Polling in frontend to check for the
+  useEffect(() => {
+    if (!runId) return;
+    const interval = setInterval(() => {
+      checkStatus(runId).then((res) => {
+        if (res) setStatus(res.status);
+        if (res && res.status === "success") {
+          console.log(res.outputs[0]?.data);
+          setImage(res.outputs[0]?.data?.images?.[0].url ?? "");
+          setLoading(false);
+          clearInterval(interval);
+        }
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [runId]);
+
+  const handleUploads = async (prompt: File, prompt2: File) => {
+    if (!prompt || !prompt2) {
+      console.log("Both files need to be selected.");
+      return;
+    }
+    setStatus("getting url for upload");
+
+
+    try {
+
+      // Get upload URLs for both files
+      const uploadOne = await getUploadUrl(prompt.type, prompt.size);
+      const uploadTwo = await getUploadUrl(prompt2.type, prompt2.size);
+      setImage("");
+      setStatus("uploading input images");
+      // Handle potential nulls from getUploadUrl
+      if (!uploadOne || !uploadTwo) {
+        console.error("Failed to get one or both upload URLs.");
+        setLoading(false);
+        return; // Stop the process if URLs can't be obtained
+
+      }
+
+      console.log(prompt?.type, prompt?.size);
+
+      // Upload both files
+      const uploadResults = await Promise.all([
+        uploadFile(uploadOne.upload_url, prompt),
+        uploadFile(uploadTwo.upload_url, prompt2)
+      ]);
+      console.log(uploadResults);
+      if (!uploadResults) return;
+
+
+      // Check both uploads were successful
+      if (uploadResults.every(res => res.ok)) {
+        console.log("Both files uploaded successfully");
+        // Generate image or any other action that needs both URLs
+        await generate_repose_img(positivePrompt, negativePrompt, uploadOne.download_url, uploadTwo.download_url, uploadOne.download_url).then((res) => {
+          console.log(res);
+          if (!res) {
+            setStatus("error");
+            setLoading(false);
+            return;
+          }
+          setRunId(res.run_id);
+        });;
+        setStatus("uploaded input: Success!!");
+        // setRunId(res.run_id);
+      } else {
+        console.log("Failed to upload one or both files");
+        setStatus("Failed to upload one or both files :(");
+      }
+    } catch (error) {
+      console.error("Upload or generation error:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent the default form submission
+    setLoading(true);
+    if (prompt && prompt2) {
+      // Use the files for whatever needs to be done
+      await handleUploads(prompt, prompt2); // Adjust handleUploads to accept files as arguments
+    } else {
+      alert("Please select both files before submitting.");
+    }
+  };
+
+
+
+  return (
+
+    <Card className="w-full">
+      <CardHeader>ainime  - Scribble to Anime Girl - transfer the style of any image</CardHeader>
+      <CardContent>
+        <form
+        >
+          <Label htmlFor="picture3">Positive txt prompt</Label>
+          <Input
+            id="picture3"
+            type="text"
+            value={positivePrompt}
+            onChange={(e) => setPositivePrompt(e.target.value)}
+          />
+          <Label htmlFor="picture4">Negative txt prompt</Label>
+          <Input
+            id="picture4"
+            type="text"
+            value={negativePrompt}
+            onChange={(e) => setNegativePrompt(e.target.value)}
+          />
+          <Label htmlFor="picture">Image prompt</Label>
+          <Input id="picture" type="file" onChange={handleFileChange} />
+
+          <Label htmlFor="picture2">Image prompt 2</Label>
+          <Input id="picture2" type="file" onChange={handleFileChange2} />
+
+          <Button onClick={handleSubmit} type="submit" className="flex gap-2" disabled={loading}>
+            Generate {loading && <LoadingIcon />}
+          </Button>
+
+          {runId && <ImageGenerationResult_repose key={runId} runId={runId} className="aspect-square" />}
+        </form>
+
+      </CardContent>
+    </Card>
+
   );
 }
 
@@ -263,6 +463,11 @@ const poses = {
     url: "https://pub-6230db03dc3a4861a9c3e55145ceda44.r2.dev/openpose-pose%20(5).png",
     name: "Pointing to the stars",
   },
+  Real_img_hand_hip: {
+    url: "https://storage.comfydeploy.com/inputs/img_wEj1SX3xTv9XMVfv.jpeg",
+    name: "Real_img_hand_hip",
+  },
+
 };
 
 function OpenposeToImage() {
@@ -270,6 +475,7 @@ function OpenposeToImage() {
   const [poseImageUrl, setPoseImageUrl] = useState(
     "https://pub-6230db03dc3a4861a9c3e55145ceda44.r2.dev/openpose-pose%20(1).png",
   );
+  const [txtprompt, txtsetPrompt] = useState("");
   const [poseLoading, setPoseLoading] = useState(false);
   const [image, setImage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -300,7 +506,7 @@ function OpenposeToImage() {
   return (
     <Card className="w-full max-w-[600px]">
       <CardHeader>
-        Comfy Deploy - Pose Creator Tool
+        ainime - Pose Creator Tool
         <div className="text-xs text-foreground opacity-50">
           OpenPose -{" "}
           <a href="https://civitai.com/models/13647/super-pose-book-vol1-controlnet">
@@ -316,7 +522,7 @@ function OpenposeToImage() {
 
             e.preventDefault();
             setLoading(true);
-            generate_img_with_controlnet(poseImageUrl, prompt).then((res) => {
+            generate_img_with_controlnet2(txtprompt, poseImageUrl, prompt).then((res) => {
               console.log("here", res);
               if (!res) {
                 setStatus("error");
@@ -350,6 +556,13 @@ function OpenposeToImage() {
               </SelectGroup>
             </SelectContent>
           </Select>
+          <Label htmlFor="picture3">txt prompt</Label>
+          <Input
+            id="picture3"
+            type="text"
+            value={txtprompt}
+            onChange={(e) => txtsetPrompt(e.target.value)}
+          />
           <Label htmlFor="picture">Image prompt</Label>
           <Input
             id="picture"

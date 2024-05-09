@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { checkStatus } from "@/server/generate";
 import { useEffect, useState } from "react";
 
-export function ImageGenerationResult({
+export function ImageGenerationResult_repose({
   runId,
   className
 }: { runId: string } & React.ComponentProps<"div">) {
@@ -29,7 +29,7 @@ export function ImageGenerationResult({
         if (res && res.status === "success") {
           console.log(res.outputs[0]?.data);
           console.log(res.outputs[1]?.data);
-          setImage(res.outputs[0]?.data?.images?.[0].url ?? "");
+          setImage(res.outputs[1]?.data?.images?.[0].url ?? "");
           setLoading(false);
           clearInterval(interval);
         }

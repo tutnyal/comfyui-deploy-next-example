@@ -8,8 +8,8 @@ const inter = Inter({ subsets: ['latin'] })
 export const runtime = 'edge'
 
 export const metadata: Metadata = {
-  title: 'Comfy Deploy Demo',
-  description: 'Serverless Comfy UI realtime demo with Next.js',
+  title: 'ainime Demo',
+  description: 'Providing AI UI for with Serverless Comfy UI realtime demo with Next.js',
 }
 
 export default function RootLayout({

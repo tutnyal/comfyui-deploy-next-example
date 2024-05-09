@@ -14,10 +14,10 @@ export async function generate(prompt: string) {
     const protocol = headersList.get("x-forwarded-proto") || "";
     const endpoint = `${protocol}://${host}`;
     // Usage example: const currentUrl = getCurrentUrl(req); // req should be passed to the generate function
-    console.log(process.env.COMFY_DEPLOYMENT_ID);
+    console.log(process.env.CHARACTER_SHEET_ID);
 
     return await client.run({
-        deployment_id: process.env.COMFY_DEPLOYMENT_ID!,
+        deployment_id: process.env.CHARACTER_SHEET_ID!,
         inputs: {
             "input_text": prompt
         },
@@ -29,7 +29,36 @@ export async function generate_img(input_image: string) {
     return await client.run({
         deployment_id: process.env.COMFY_DEPLOYMENT_ID_IMG_2_IMG!,
         inputs: {
-            "input_image": input_image
+            "input_image_url": input_image
+        }
+    })
+}
+
+
+
+export async function generate_img2(positive_prompt: string, negative_prompt: string, input_img: string) {
+    return await client.run({
+        deployment_id: process.env.COMFY_DEPLOYMENT_ID_IMG_2_IMG!,
+        inputs: {
+            "positive_prompt": positive_prompt,
+            "negative_prompt": negative_prompt,
+            "input_image_url": input_img
+            // "controlnet_strength": "0.7"
+        }
+    })
+}
+
+export async function generate_repose_img(input_text: string, input_text2: string, img1URL: string, img2URL: string, img3URL: string) {
+    return await client.run({
+        deployment_id: process.env.REPOSER_ID!,
+        inputs: {
+            "positive_prompt": input_text,
+            "negative_prompt": input_text2,
+            "input_image_face": img1URL,
+            "input_image_pose": img2URL,
+            "input_image_style": img3URL
+
+
         }
     })
 }
@@ -40,6 +69,19 @@ export async function generate_img_with_controlnet(input_openpose_url: string, p
         inputs: {
             "positive_prompt": prompt,
             "openpose": input_openpose_url
+        }
+    })
+}
+
+
+
+export async function generate_img_with_controlnet2(input_openpose_url: string, prompt: string, input_text: string) {
+    return await client.run({
+        deployment_id: process.env.COMFY_DEPLOYMENT_ID_CONTROLNET!,
+        inputs: {
+            "positive_prompt": input_text,
+            "input_image_face": prompt,
+            "input_image": input_openpose_url
         }
     })
 }
